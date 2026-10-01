@@ -241,6 +241,40 @@ def test_current_api_draft_excludes_credentials_and_builtin_models(metadata):
     assert json.dumps(raw, sort_keys=True) == before
 
 
+@pytest.mark.parametrize("enabled", [False, True])
+def test_import_save_copy_apply_preserves_custom_state(tmp_path, metadata, enabled):
+    catalog = provider_catalog(metadata)
+    draft = preset_from_host_config({
+        "success": True, "coreApi": "free", "assistApi": "free", "enableCustomApi": enabled,
+        "conversationModelProvider": "custom", "conversationModelUrl": "https://saved.example.test/v1",
+        "conversationModelId": "saved-model", "conversationModelApiKey": "host-secret",
+    }, catalog)["preset"]
+    assert draft["enableCustomApi"] is enabled
+    repo = PresetRepository(tmp_path / "presets.json")
+    item = repo.save(draft | {"name": "import"})
+    copied = repo.copy(item["id"], "copy")
+    for chosen in [item, copied]:
+        payload = build_payload(chosen["preset"], catalog)
+        assert payload["enableCustomApi"] is enabled
+        assert payload["conversationModelId"] == "saved-model"
+        assert payload["conversationModelUrl"] == "https://saved.example.test/v1"
+        assert payload["conversationModelApiKey"] == ""
+    toggled = repo.save(item["preset"] | {"enableCustomApi": not enabled}, item["id"], item["revision"])
+    assert toggled["preset"]["slots"] == item["preset"]["slots"]
+
+
+def test_custom_switch_legacy_defaults_and_strict_bool(preset, metadata):
+    assert normalize_preset(preset)["enableCustomApi"] is False
+    custom = preset | {"slots": {"conversation": {"provider": "custom", "url": "https://legacy.example.test", "model": "legacy", "key": ""}}}
+    assert normalize_preset(custom)["enableCustomApi"] is True
+    disabled = normalize_preset(custom | {"enableCustomApi": False})
+    assert build_payload(disabled, provider_catalog(metadata))["enableCustomApi"] is False
+    assert public_preset(disabled)["enableCustomApi"] is False
+    for value in [0, 1, "false", None]:
+        with pytest.raises(PresetError, match="invalid_preset"):
+            normalize_preset(custom | {"enableCustomApi": value})
+
+
 def test_current_api_import_is_read_only_and_closes_clients(metadata, monkeypatch):
     calls, closed = [], []
     real_client = httpx.AsyncClient

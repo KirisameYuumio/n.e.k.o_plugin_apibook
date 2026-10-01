@@ -83,7 +83,7 @@ try {
       secrets.set(item.id, secrets.get(source.id)); bookSecrets.set(item.id, structuredClone(bookSecrets.get(source.id))); vendorSecrets.set(item.id, structuredClone(vendorSecrets.get(source.id))); state.presets.push(item); return { result: item };
     }
     if (id === 'current_api_draft') return { result: { preset: {
-      name: '', notes: '', core: 'qwen', assist: 'free', keys: {}, slots: {
+      name: '', notes: '', core: 'qwen', assist: 'free', enableCustomApi: false, keys: {}, slots: {
         conversation: { provider: 'custom', url: 'https://import.example.test/v1', model: 'import-model', key: '' },
       },
     }, skipped_slots: ['vision'] } };
@@ -210,7 +210,7 @@ try {
   assert.equal(await openaiKey.inputValue(), '');
   assert.equal(calls.filter(c => c.payload?.actionId === 'save_preset').length, savesBeforeImport);
   assert.equal(calls.filter(c => c.payload?.actionId === 'apply_preset').length, 0);
-  await frame.getByText('只导入服务商选择和自定义模型配置，Key 请手动填写。填写预设名称后保存；尚未修改 N.E.K.O。', { exact: true }).waitFor();
+  await frame.getByText(messages['panel.importHelp'], { exact: true }).waitFor();
   await frame.getByText(/这些槽位的选择暂不支持.*视觉/).waitFor();
   // Copy remains usable with an unsaved new draft and no selected saved preset.
   assert.equal(await frame.getByRole('button', { name: '复制一个预设', exact: true }).isDisabled(), false);
@@ -218,9 +218,26 @@ try {
   await frame.getByRole('button', { name: '保存预设', exact: true }).click();
   await frame.getByText(messages['probe.savedTested'], { exact: true }).waitFor();
   assert.equal(state.presets[3].preset.slots.conversation.model, 'import-model');
+  assert.equal(state.presets[3].preset.enableCustomApi, false);
+  await frame.getByText('自定义模型与跟随方式', { exact: true }).click();
+  const customSwitch = frame.getByRole('checkbox', { name: '启用自定义 API', exact: true });
+  assert.equal(await customSwitch.isChecked(), false);
+  const importedCard = frame.locator('.neko-card').filter({ has: frame.getByRole('heading', { name: '对话', exact: true }) }).last();
+  assert.equal(await importedCard.locator('input').nth(1).inputValue(), 'import-model');
+  await customSwitch.click();
+  assert.equal(await customSwitch.isChecked(), true);
+  await customSwitch.click();
+  assert.equal(await importedCard.locator('input').nth(1).inputValue(), 'import-model');
+  await frame.locator('textarea').fill('关闭开关后仍保留模型');
+  await toolbar.getByRole('button', { name: '保存预设', exact: true }).click();
+  await frame.getByText(messages['probe.savedTested'], { exact: true }).waitFor();
+  assert.equal(state.presets[3].preset.enableCustomApi, false);
+  assert.equal(state.presets[3].preset.slots.conversation.model, 'import-model');
+  await frame.getByText('自定义模型与跟随方式', { exact: true }).click();
   assert.deepEqual(state.presets[3].preset.keys, {});
   await frame.getByRole('button', { name: '备用账号', exact: true }).click();
   await frame.getByText('自定义模型与跟随方式', { exact: true }).click();
+  await customSwitch.click();
   await frame.locator('select').nth(2).selectOption('custom');
   // The slot-local reset clears its custom triple before the next save.
   await frame.getByRole('button', { name: '恢复为跟随核心／辅助 API', exact: true }).first().click();

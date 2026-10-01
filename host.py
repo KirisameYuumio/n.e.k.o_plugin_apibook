@@ -63,6 +63,7 @@ def preset_from_host_config(raw, catalog):
     if not isinstance(raw, dict) or raw.get("success") is not True:
         raise PresetError("host_response_invalid")
     draft = blank_preset()
+    draft["enableCustomApi"] = raw.get("enableCustomApi", False)
     for target, field in (("core", "coreApi"), ("assist", "assistApi")):
         provider = text(raw.get(field, "free"), 80, "invalid_provider")
         if provider not in catalog[target]:

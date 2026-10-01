@@ -116,7 +116,7 @@
   "panel.copyPlaceholder": "Choose a preset",
   "panel.copyConfirm": "Create copy",
   "panel.imported": "Current N.E.K.O API settings loaded into a new draft.",
-  "panel.importHelp": "Imported provider choices and custom models only. Enter API keys manually, name the preset and save it. N.E.K.O has not been changed.",
+  "panel.importHelp": "서비스 제공자, 사용자 지정 모델 설정과 활성화 상태를 가져옵니다. Key를 직접 입력하고 이름을 지정해 저장하세요. 아직 N.E.K.O는 변경되지 않았습니다.",
   "panel.importSkipped": "Unsupported slot selections were reset to their default follow mode (image disabled): {slots}. Check them before saving.",
   "panel.keyBook": "API key book",
   "panel.keyBookHelp": "Manage keys for all built-in providers in this preset, including providers not currently selected. Core and assist APIs use the matching key from this book. Keys stay independent between presets.",
@@ -165,5 +165,7 @@
   "vendors.testHelp": "Enter a name, URL and key, then select this provider for a model and enter its model ID. Saving tests selected models; unused providers send no requests.",
   "vendors.linked": "URL and key come from this preset's API book. Edit them in the book.",
   "errors.vendor_limit": "Each preset supports up to 32 added providers.",
-  "errors.invalid_vendor": "Provider names must be non-empty and unique. Check the provider and its model references."
+  "errors.invalid_vendor": "Provider names must be non-empty and unique. Check the provider and its model references.",
+  "panel.customEnabled": "사용자 지정 API 활성화",
+  "panel.customEnabledHelp": "꺼도 입력 내용은 유지되며 적용할 때도 꺼진 상태를 유지합니다. GPT-SoVITS는 본체의 독립적인 활성화 방식을 따릅니다."
 }

@@ -24,7 +24,19 @@ def probe_metadata():
 
 @pytest.fixture
 def probe_preset():
-    return normalize_preset({"name": "test", "core": "qwen", "assist": "qwen", "keys": {"qwen": "private-key"}})
+    return normalize_preset({"name": "test", "core": "qwen", "assist": "qwen", "enableCustomApi": True, "keys": {"qwen": "private-key"}})
+
+
+def test_disabled_overrides_probe_active_builtin_models_only(probe_metadata, probe_preset):
+    custom = {"provider": "custom", "url": "https://inactive.example.test", "model": "inactive", "key": "unused"}
+    probe_preset["slots"] = {"conversation": custom, "omni": custom | {"url": "wss://inactive.example.test"}, "tts": custom, "image": custom}
+    probe_preset["enableCustomApi"] = False
+    groups = probe_plan(probe_preset, probe_metadata)
+    assert not any("inactive" in json.dumps(g) or "unused" in json.dumps(g) for g in groups)
+    assert next(g for g in groups if "conversation" in g["functions"])["model"] == "shared"
+    assert next(g for g in groups if "omni" in g["functions"])["model"] == "voice"
+    assert next(g for g in groups if "image" in g["functions"])["status"] == "not_configured"
+    assert probe_preset["slots"]["conversation"] == custom
 
 
 def test_same_url_model_merges_functions_and_different_model_key_protocol_do_not(probe_metadata, probe_preset):

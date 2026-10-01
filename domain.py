@@ -61,11 +61,20 @@ def endpoint(value, slot):
 
 
 def blank_preset():
-    return {"name": "", "notes": "", "core": "free", "assist": "free", "keys": {}, "slots": {}, "vendors": {}}
+    return {"name": "", "notes": "", "core": "free", "assist": "free", "keys": {}, "slots": {}, "vendors": {}, "enableCustomApi": False}
+
+
+def custom_enabled(preset):
+    """Preserve legacy apply behavior only when a preset has no explicit switch."""
+    return preset.get("enableCustomApi", any(
+        value["provider"] != DEFAULTS[slot] for slot, value in preset.get("slots", {}).items()
+    ))
 
 
 def normalize_preset(raw, previous=None):
-    if not isinstance(raw, dict) or set(raw) - {"name", "notes", "core", "assist", "keys", "slots", "vendors"}:
+    if not isinstance(raw, dict) or set(raw) - {"name", "notes", "core", "assist", "keys", "slots", "vendors", "enableCustomApi"}:
+        raise PresetError("invalid_preset")
+    if "enableCustomApi" in raw and type(raw["enableCustomApi"]) is not bool:
         raise PresetError("invalid_preset")
     old = previous or blank_preset()
     name = text(raw.get("name", ""), 80, "invalid_name")
@@ -145,6 +154,7 @@ def normalize_preset(raw, previous=None):
     return {
         "name": name, "notes": text(raw.get("notes", ""), 2000, "invalid_notes", strip=False),
         "core": core, "assist": assist, "keys": clean_keys, "slots": clean_slots, "vendors": clean_vendors,
+        "enableCustomApi": custom_enabled(raw | {"slots": clean_slots}),
     }
 
 
@@ -170,6 +180,13 @@ def effective_slot(preset, slot):
     return {"provider": "custom", "model": value["model"], "url": endpoint(vendor["url"], slot), "key": vendor["key"]}
 
 
+def active_slot(preset, slot):
+    """Resolve enabled settings without altering saved content; GSV is independent."""
+    if not custom_enabled(preset) and not (slot == "tts" and preset["slots"].get(slot, {}).get("provider") == "gptsovits"):
+        return {"provider": DEFAULTS[slot]}
+    return effective_slot(preset, slot)
+
+
 def build_payload(preset, catalog):
     """Send a complete managed scope, never fetch host credentials or write its files."""
     core, assist = preset["core"], preset["assist"]
@@ -180,7 +197,7 @@ def build_payload(preset, catalog):
     payload = {
         "coreApi": core, "assistApi": assist,
         "coreApiKey": "free-access" if core == "free" else keys.get(core, ""),
-        "enableCustomApi": False, "gptsovitsEnabled": False, "useMimoTokenPlan": False,
+        "enableCustomApi": custom_enabled(preset), "gptsovitsEnabled": False, "useMimoTokenPlan": False,
     }
     for slot in SLOTS:
         value = effective_slot(preset, slot)
@@ -190,15 +207,13 @@ def build_payload(preset, catalog):
         prefix = f"{slot}Model"
         payload.update({prefix + "Provider": provider, prefix + "Url": "", prefix + "Id": "", prefix + "ApiKey": ""})
         if provider not in FOLLOW_MODES | {"disabled"}:
-            payload["enableCustomApi"] = True
             if provider in {"custom", "gptsovits"}:
                 payload.update({prefix + "Url": value["url"], prefix + "Id": value["model"], prefix + "ApiKey": value["key"]})
                 if slot == "tts":
                     payload["ttsProvider"] = provider
             else:
-                needed.add(provider)
-        elif provider != DEFAULTS[slot]:
-            payload["enableCustomApi"] = True
+                if payload["enableCustomApi"]:
+                    needed.add(provider)
     for provider in needed:
         if provider not in catalog["key_fields"] or not keys.get(provider):
             raise PresetError("required_key")

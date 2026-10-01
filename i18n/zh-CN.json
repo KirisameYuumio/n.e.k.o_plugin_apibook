@@ -116,7 +116,7 @@
   "panel.copyPlaceholder": "请选择一个预设",
   "panel.copyConfirm": "创建副本",
   "panel.imported": "已基于 N.E.K.O 当前 API 设置创建草稿。",
-  "panel.importHelp": "只导入服务商选择和自定义模型配置，Key 请手动填写。填写预设名称后保存；尚未修改 N.E.K.O。",
+  "panel.importHelp": "导入服务商选择、自定义模型配置和启用状态，Key 请手动填写。填写预设名称后保存；尚未修改 N.E.K.O。",
   "panel.importSkipped": "这些槽位的选择暂不支持，已恢复为默认跟随方式（图像为禁用）：{slots}。保存前请检查。",
   "panel.keyBook": "API 管理簿",
   "panel.keyBookHelp": "在当前预设中统一管理各家内置服务商的 Key，也可提前填写未选中的服务商。核心／辅助 API 使用管理簿中对应的 Key；不同预设分别保存。",
@@ -165,5 +165,7 @@
   "vendors.testHelp": "填写名称、地址和 Key 后，在下方模型中选择该厂商并填写模型 ID。保存后自动测试，未选用的厂商不发请求。",
   "vendors.linked": "地址和 Key 来自当前预设的 API 管理簿，请在管理簿中修改。",
   "errors.vendor_limit": "每条预设最多新增 32 个厂商。",
-  "errors.invalid_vendor": "厂商名称不能为空或重复；请检查厂商及模型引用。"
+  "errors.invalid_vendor": "厂商名称不能为空或重复；请检查厂商及模型引用。",
+  "panel.customEnabled": "启用自定义 API",
+  "panel.customEnabledHelp": "关闭时保留填写内容，应用时也保持关闭。GPT-SoVITS 沿用本体的独立启用方式。"
 }

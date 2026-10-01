@@ -76,6 +76,7 @@ def test_real_save_route_and_resolver_a_b_a(tmp_path, monkeypatch, real_catalog)
     base = {"name": "A", "notes": "", "core": "qwen", "assist": "openai", "keys": {"qwen": "qwen-account-a", "openai": "openai-account-a"}, "slots": {}}
     a = normalize_preset(base | {"vendors": {"vendor_1": {"name": "Local vendor", "url": "https://a.example.test/v1", "key": "conversation-account-a"}}, "slots": {"conversation": {"provider": "custom", "vendor_id": "vendor_1", "model": "model-a"}, "tts": {"provider": "gptsovits", "url": "http://127.0.0.1:9880", "model": "", "key": ""}}})
     b = normalize_preset(base | {"name": "B", "core": "openai", "assist": "qwen", "keys": {"qwen": "qwen-account-b", "openai": "openai-account-b"}})
+    off = normalize_preset(a | {"name": "A disabled", "enableCustomApi": False})
     manager.save_json_config("core_config.json", {"coreApi": "qwen", "assistApi": "openai", "ttsVoiceId": "user-voice", "disableTts": False, "openclawUrl": "http://127.0.0.1:1234"})
 
     async def save(payload):
@@ -105,7 +106,7 @@ def test_real_save_route_and_resolver_a_b_a(tmp_path, monkeypatch, real_catalog)
         # Reproduce why an incremental key-only switch leaves previous overrides.
         await save({"coreApi": "openai", "assistApi": "qwen", "coreApiKey": "openai-account-b", "assistApiKeyQwen": "qwen-account-b", "enableCustomApi": True})
         assert snapshots[-1]["CONVERSATION_MODEL"] == "model-a"
-        for preset in [b, a, b]:
+        for preset in [b, a, off, a, b]:
             await save(build_payload(preset, real_catalog))
             runtime = snapshots[-1]
             metadata = get_config()
@@ -129,10 +130,19 @@ def test_real_save_route_and_resolver_a_b_a(tmp_path, monkeypatch, real_catalog)
                 assert runtime["OPENROUTER_API_KEY"] == "qwen-account-b"
                 assert runtime["GPTSOVITS_ENABLED"] is False
                 assert "a.example.test" not in runtime["CONVERSATION_MODEL_URL"]
+            elif preset is off:
+                assert runtime["ENABLE_CUSTOM_API"] is False
+                assert runtime["CONVERSATION_MODEL"] == profiles["openai"]["CONVERSATION_MODEL"]
+                assert runtime["GPTSOVITS_ENABLED"] is True  # Native independent switch.
             else:
                 assert runtime["CONVERSATION_MODEL_API_KEY"] == "conversation-account-a"
                 assert runtime["GPTSOVITS_ENABLED"] is True
             saved = manager.load_json_config("core_config.json", {})
+            assert saved["enableCustomApi"] is preset["enableCustomApi"]
+            if preset is off:
+                assert saved["conversationModelId"] == "model-a"
+                assert saved["conversationModelUrl"] == "https://a.example.test/v1"
+                assert saved["conversationModelApiKey"] == "conversation-account-a"
             assert saved["ttsVoiceId"] == "user-voice"
             assert saved["disableTts"] is False
             assert "coreModel" not in saved and "notes" not in saved

@@ -6,7 +6,7 @@ import re
 
 import httpx
 
-from .domain import SLOTS, PresetError, effective_slot
+from .domain import SLOTS, PresetError, active_slot
 from .host import provider_catalog
 
 ERROR_CODES = {
@@ -71,7 +71,7 @@ def probe_plan(preset, metadata):
         return target(candidates, model, key, protocol, body=body, status=status, note=note, is_free=free)
 
     def resolve(slot):
-        value = effective_slot(preset, slot)
+        value = active_slot(preset, slot)
         provider = value["provider"]
         if provider == "disabled":
             return target(status="not_configured", note="disabled")

@@ -116,7 +116,7 @@
   "panel.copyPlaceholder": "請選擇一個預設",
   "panel.copyConfirm": "建立副本",
   "panel.imported": "已基於 N.E.K.O 目前 API 設定建立草稿。",
-  "panel.importHelp": "只匯入服務商選擇和自訂模型設定，Key 請手動填寫。填寫預設名稱後儲存；尚未修改 N.E.K.O。",
+  "panel.importHelp": "匯入服務商選擇、自訂模型設定及啟用狀態，Key 請手動填寫。填寫預設名稱後儲存；尚未修改 N.E.K.O。",
   "panel.importSkipped": "這些槽位的選擇暫不支援，已恢復為預設跟隨方式（圖像為停用）：{slots}。儲存前請檢查。",
   "panel.keyBook": "API 管理簿",
   "panel.keyBookHelp": "在目前預設中統一管理各家內建服務商的 Key，也可提前填寫未選取的服務商。核心／輔助 API 使用管理簿中對應的 Key；不同預設分別儲存。",
@@ -165,5 +165,7 @@
   "vendors.testHelp": "填寫名稱、地址和 Key 後，在下方模型中選擇該廠商並填寫模型 ID。儲存後自動測試，未選用的廠商不發請求。",
   "vendors.linked": "地址和 Key 來自目前預設的 API 管理簿，請在管理簿中修改。",
   "errors.vendor_limit": "每條預設最多新增 32 個廠商。",
-  "errors.invalid_vendor": "廠商名稱不能為空或重複；請檢查廠商及模型引用。"
+  "errors.invalid_vendor": "廠商名稱不能為空或重複；請檢查廠商及模型引用。",
+  "panel.customEnabled": "啟用自訂 API",
+  "panel.customEnabledHelp": "關閉時保留填寫內容，套用時也保持關閉。GPT-SoVITS 沿用本體的獨立啟用方式。"
 }

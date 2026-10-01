@@ -1,6 +1,6 @@
 import {
   Page, Card, Stack, Inline, Columns, Split, Text, Button, StatusBadge, Field, Input,
-  PasswordInput, Textarea, Select, Accordion, Alert, EmptyState, Tooltip,
+  PasswordInput, Textarea, Select, Switch, Accordion, Alert, EmptyState, Tooltip,
   useState, useEffect, useRef, useConfirm, type PluginSurfaceProps,
 } from "@neko/plugin-ui";
 
@@ -9,13 +9,13 @@ const slots = ["conversation", "summary", "gameMain", "gameSummary", "correction
 const defaults = Object.fromEntries(slots.map(s => [s, s === "omni" ? "follow_core" : s === "image" ? "disabled" : s === "gameMain" ? "follow_conversation" : s === "gameSummary" ? "follow_summary" : "follow_assist"]));
 type Slot = { provider: string; url?: string; model?: string; key?: string; vendor_id?: string };
 type Vendor = { name: string; url: string; key: string };
-type Preset = { name: string; notes: string; core: string; assist: string; keys: Record<string, string>; slots: Record<string, Slot>; vendors?: Record<string, Vendor> };
+type Preset = { name: string; notes: string; core: string; assist: string; enableCustomApi: boolean; keys: Record<string, string>; slots: Record<string, Slot>; vendors?: Record<string, Vendor> };
 type Item = { id: string; revision: number; preset: Preset };
 type ProbeGroup = { functions: string[]; model: string; status: string; note?: string; error_code?: string; http_status?: number; free_policy?: boolean };
 type Probe = { preset_id: string; revision: number; groups: ProbeGroup[]; tested: number };
 type Catalog = { core: string[]; assist: string[]; labels: Record<string, string>; key_fields: Record<string, string>; slot_providers: Record<string, string[]>; models?: { core: Record<string, string>; assist: Record<string, Record<string, string>> } };
 type State = { presets?: Item[]; catalog?: Catalog; connectivity?: Probe; error?: string; catalog_error?: string; last_application?: { name: string; time: string; status: string }; max_presets?: number };
-const blank = (): Preset => ({ name: "", notes: "", core: "free", assist: "free", keys: {}, slots: {}, vendors: {} });
+const blank = (): Preset => ({ name: "", notes: "", core: "free", assist: "free", enableCustomApi: false, keys: {}, slots: {}, vendors: {} });
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
 export default function Panel({ state, t, api }: PluginSurfaceProps<State>) {
@@ -168,7 +168,8 @@ export default function Panel({ state, t, api }: PluginSurfaceProps<State>) {
     if (!draft) return "";
     if (slot === "core") return catalog?.models?.core[draft.core] || "";
     if (slot === "assist") return catalog?.models?.assist[draft.assist]?.conversation || "";
-    const value = draft.slots[slot] || { provider: defaults[slot] };
+    const saved = draft.slots[slot] || { provider: defaults[slot] };
+    const value = draft.enableCustomApi || slot === "tts" && saved.provider === "gptsovits" ? saved : { provider: defaults[slot] };
     if (value.provider === "custom" || value.provider === "gptsovits") return value.model || "";
     if (value.provider === "follow_conversation") return previewModel("conversation");
     if (value.provider === "follow_summary") return previewModel("summary");
@@ -181,7 +182,7 @@ export default function Panel({ state, t, api }: PluginSurfaceProps<State>) {
   const tested = !dirty && probe?.preset_id === selected && probe.revision === revision;
   const lights: ProbeGroup[] = tested ? probe.groups.slice(0, 13) : ["core", "assist", ...slots].map(id => ({
     functions: [id], model: previewModel(id),
-    status: id === "image" && (draft?.slots.image?.provider || defaults.image) === "disabled" ? "not_configured" : testing ? "testing" : "untested",
+    status: id === "image" && (!draft?.enableCustomApi || (draft?.slots.image?.provider || defaults.image) === "disabled") ? "not_configured" : testing ? "testing" : "untested",
   }));
   return <Page title={t("panel.title")} subtitle={t("panel.subtitle")}>
     <style>{`
@@ -292,6 +293,8 @@ export default function Panel({ state, t, api }: PluginSurfaceProps<State>) {
               <Text>{t("vendors.testHelp")}</Text>
             </Stack></Accordion>
             <Accordion id="api-presets-models" title={t("panel.custom")} open={false}><Stack gap={12}>
+              <Switch checked={draft.enableCustomApi} label={t("panel.customEnabled")} disabled={busy} onChange={enabled => change("enableCustomApi", enabled)} />
+              <Text>{t("panel.customEnabledHelp")}</Text>
               <Text>{t("panel.customHelp")}</Text>
               {slots.map(slot => {
                 const value = draft.slots[slot] || { provider: defaults[slot] };
