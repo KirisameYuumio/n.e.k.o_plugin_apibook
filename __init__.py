@@ -26,11 +26,24 @@ class ApiPresetsPlugin(NekoPluginBase):
     async def _disk(self, function, *args):
         # Finish atomic writes before releasing the operation lock on cancellation.
         task = asyncio.create_task(asyncio.to_thread(function, *args))
-        try:
-            return await asyncio.shield(task)
-        except asyncio.CancelledError:
-            await task
-            raise
+        cancelled = False
+        while True:
+            try:
+                result = await asyncio.shield(task)
+                break
+            except asyncio.CancelledError:
+                cancelled = True
+                # Every retry stays shielded: repeated cancellation must not
+                # release the operation lock while the disk thread is running.
+                if task.cancelled():
+                    raise
+            except Exception:
+                if cancelled:
+                    raise asyncio.CancelledError from None
+                raise
+        if cancelled:
+            raise asyncio.CancelledError
+        return result
 
     async def _host(self):
         cfg = await self.config.dump(timeout=5)

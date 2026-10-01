@@ -275,6 +275,55 @@ def test_custom_switch_legacy_defaults_and_strict_bool(preset, metadata):
             normalize_preset(custom | {"enableCustomApi": value})
 
 
+@pytest.mark.parametrize("write_fails", [False, True])
+def test_repeated_cancel_holds_lock_until_atomic_replace_finishes(tmp_path, monkeypatch, write_fails):
+    import threading
+
+    import apibook.storage as storage
+
+    repo = PresetRepository(tmp_path / "presets.json")
+    initial = repo.save({"name": "initial"})
+    plugin = object.__new__(ApiPresetsPlugin)
+    plugin._lock, plugin._stopping = asyncio.Lock(), False
+    plugin._error = lambda code: Err(code)
+    started, finish = threading.Event(), threading.Event()
+    original_replace = storage.os.replace
+
+    def delayed_replace(source, destination):
+        started.set()
+        assert finish.wait(5)
+        if write_fails:
+            raise OSError("simulated")
+        original_replace(source, destination)
+
+    monkeypatch.setattr(storage.os, "replace", delayed_replace)
+
+    async def run():
+        older = initial["preset"] | {"name": "older"}
+        task = asyncio.create_task(plugin._run(lambda: plugin._disk(repo.save, older, initial["id"], 1)))
+        try:
+            assert await asyncio.to_thread(started.wait, 3)
+            for _ in range(3):
+                task.cancel()
+                await asyncio.sleep(0)
+            assert plugin._lock.locked() and not task.done()
+            assert isinstance(await plugin._run(lambda: plugin._disk(repo.save, {"name": "newer"}, initial["id"], 1)), Err)
+        finally:
+            finish.set()
+            await asyncio.gather(task, return_exceptions=True)
+        assert task.cancelled() and not plugin._lock.locked()
+        monkeypatch.setattr(storage.os, "replace", original_replace)
+        current = repo.find(repo.read(), initial["id"])
+        assert current["revision"] == (1 if write_fails else 2)
+        newer = await plugin._run(lambda: plugin._disk(repo.save, current["preset"] | {"name": "newer"}, current["id"], current["revision"]))
+        assert isinstance(newer, Ok)
+        assert repo.find(repo.read(), current["id"])["preset"]["name"] == "newer"
+        assert list(tmp_path.iterdir()) == [repo.path]
+        assert isinstance(await plugin.shutdown(), Ok)
+
+    asyncio.run(run())
+
+
 def test_current_api_import_is_read_only_and_closes_clients(metadata, monkeypatch):
     calls, closed = [], []
     real_client = httpx.AsyncClient
